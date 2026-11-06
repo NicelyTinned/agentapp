@@ -1,0 +1,46 @@
+name: Generate Android Keystore
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate Keystore
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -e
+
+          if [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "Missing ANDROID_KEYSTORE_PASSWORD secret!"
+            exit 1
+          fi
+
+          keytool -genkeypair -v \
+            -keystore release.jks \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEYSTORE_PASSWORD" \
+            -alias upload \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android App"
+
+      - name: Encode Keystore
+        run: |
+          base64 -w 0 release.jks > keystore-base64.txt
+
+      - name: Upload Keystore
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-keystore
+          path: |
+            release.jks
+            keystore-base64.txt
+          retention-days: 1
